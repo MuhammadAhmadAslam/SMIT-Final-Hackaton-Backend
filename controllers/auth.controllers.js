@@ -1,8 +1,8 @@
 import { comaprePassword, convertPasswordToHash, generateToken } from "../lib/utility.js";
 import UserModal from "../models/user.models.js";
-
+import jwt from "jsonwebtoken"
 export async function SignUpNewUser(req, res) {
-        try {
+    try {
         let ifUserExisits = await UserModal.findOne({ email: req.body.email })
         console.log(ifUserExisits, "ifUserExisits");
 
@@ -47,18 +47,59 @@ export async function SignUpNewUser(req, res) {
 }
 
 
-export async function getAllUsers(req,res){
-    try{
+export async function getAllUsers(req, res) {
+    try {
         let finding = await UserModal.find()
         res.status(200).send({
             message: "All Users Fetched Successfully",
             error: false,
             data: finding
         })
-    }catch(e){
+    } catch (e) {
         res.status(500).send({
             error: true,
             message: e.message
         })
+    }
+}
+
+export async function LoginNewUser(req, res) {
+    try {
+        let user = await UserModal.findOne({ email: req.body.email });
+
+        if (!user) {
+            return res.send({
+                message: "User Not Found",
+                error: true
+            });
+        }
+
+        let isPasswordCorrect = await comaprePassword(req.body.password, user.password);
+        if (!isPasswordCorrect) {
+            return res.send({
+                message: "Password Not Matched",
+                error: true
+            });
+        }
+
+        console.log(isPasswordCorrect);
+        console.log(user, "user");
+
+        let generatingToken = await jwt.sign(
+            { id: user._id, email: user.email }, 
+            process.env.JWT_PASSWORD_SECRET_KEY,
+            { expiresIn: '60d' }
+        );
+        console.log(generatingToken, "token");
+
+        res.send({
+            message: "Good",
+            token: generatingToken 
+        });
+    } catch (e) {
+        console.error(e); 
+        res.send({
+            message: "error"
+        });
     }
 }
