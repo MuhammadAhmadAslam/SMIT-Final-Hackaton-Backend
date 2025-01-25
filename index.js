@@ -15,7 +15,7 @@ dotenv.config()
 
 app.use("/api/auth" , authRouter)
 
-app.listen(process.env.PORT , () => {
+app.listen(4000 , () => {
     console.log("Server is runnig on port " + process.env.PORT)
     connectDB()
 })
