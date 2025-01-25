@@ -1,6 +1,7 @@
-import { calculateLoanBreakdown, generateTokenSlip, sendRejectEmail } from "../lib/utility.js";
+import { calculateLoanBreakdown, convertPasswordToHash, generateRandomPassword, generateTokenSlip, sendRejectEmail, sendResetPasswordEmail } from "../lib/utility.js";
 import AppointmentModal from "../models/appointment.modal.js";
 import LoanModal from "../models/loan.model.js";
+import UserModal from "../models/user.models.js";
 
 
 /**
@@ -15,6 +16,13 @@ export async function submitLoanForm(req, res) {
             loanAmount,
             loanPeriod,
             guarantors,
+            email,
+            CNIC,
+            name,
+            phone,
+            address,
+            city,
+            country,
         } = req.body;
 
         // Validate required fields
@@ -26,6 +34,7 @@ export async function submitLoanForm(req, res) {
             !loanPeriod ||
             !guarantors ||
             guarantors.length === 0
+            || !name || !email || !CNIC || !city || !country
         ) {
             return res.status(400).json({
                 error: true,
@@ -36,9 +45,44 @@ export async function submitLoanForm(req, res) {
         // Calculate loan breakdown (installment amounts)
         const breakdown = calculateLoanBreakdown(initialDeposit, loanAmount, loanPeriod);
 
-        // Create a loan object
+        // Check if the user already exists based on CNIC or email
+        let isUserRegistered = await UserModal.findOne({
+            $or: [{ CNIC }, { email }],
+        });
+
+        // If user doesn't exist, create a new user
+        if (!isUserRegistered) {
+            // Generate a random password for the new user
+            let password = generateRandomPassword(12);
+            const hashedPassword = await convertPasswordToHash(password);
+
+            // Create new user object
+            const userObj = {
+                name,
+                email,
+                cnic: CNIC,
+                password: hashedPassword, // Auto-generated password
+                role: "user",
+                city,
+                country,
+                phone,
+                address,
+            };
+
+            // Create the new user and save to the database
+            const newUser = new UserModal(userObj);
+            await newUser.save();
+
+            // Send a password reset email to the user
+            await sendResetPasswordEmail(email, password);
+
+            // Get the userId of the newly created user
+            isUserRegistered = newUser;
+        }
+
+        // Create loan object with the userId from the newly created or found user
         const loanObj = {
-            userId: req.body.userId,
+            userId: isUserRegistered._id, // Use the userId of the registered or newly created user
             category,
             subcategory,
             initialDeposit,
@@ -50,7 +94,7 @@ export async function submitLoanForm(req, res) {
         };
 
         // Save loan request to the database
-        const newLoan = LoanModal(loanObj);
+        const newLoan = new LoanModal(loanObj);
         await newLoan.save();
 
         res.status(201).json({
