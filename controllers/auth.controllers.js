@@ -1,50 +1,80 @@
-import { comaprePassword, convertPasswordToHash, generateToken } from "../lib/utility.js";
+import { comaprePassword, convertPasswordToHash, generateRandomPassword, generateToken,sendResetPasswordEmail } from "../lib/utility.js";
 import UserModal from "../models/user.models.js";
 import jwt from "jsonwebtoken"
+
 export async function SignUpNewUser(req, res) {
-    try {
-        let ifUserExisits = await UserModal.findOne({ email: req.body.email })
-        console.log(ifUserExisits, "ifUserExisits");
-
-        if (ifUserExisits) {
-            return res.status(400).send({
-                message: "User Already Exsists",
-                error: true
-            })
-        }
-
-        let convertingPasswordToHash = await convertPasswordToHash(req.body.password)
-        console.log(convertingPasswordToHash, "hashed password");
-
-        let obj = {
-            firstName: req.body.firstName,
-            lastName: req.body.lastName,
-            email: req.body.email,
-            password: convertingPasswordToHash,
-            role: req.body.role
-        }
-
-        const newUser = await UserModal(obj)
-        await newUser.save()
-
-        delete obj.password
-
-        let generatingToken = await generateToken(obj)
-
-        res.status(201).json({
-            message: "User Created Successfully",
-            error: false,
-            data: obj,
-            token: generatingToken
-        })
-
-    } catch (e) {
-        res.status(500).send({
-            error: true,
-            message: e.message
-        })
+  try {
+    // Check if user already exists
+    const ifUserExists = await UserModal.findOne({ email: req.body.email });
+    if (ifUserExists) {
+      return res.status(400).send({
+        message: "User already exists",
+        error: true,
+      });
     }
+
+    let password;
+    if (req.body.role === "admin") {
+      // Admin role must provide password
+      if (!req.body.password) {
+        return res.status(400).send({
+          message: "Password is required for admin accounts",
+          error: true,
+        });
+      }
+      password = req.body.password;
+    } else if (req.body.role === "user") {
+      // Generate password for user role
+      password = generateRandomPassword(12); // Generate a random 12-character password
+    } else {
+      return res.status(400).send({
+        message: "Invalid role. Only 'admin' and 'user' are allowed",
+        error: true,
+      });
+    }
+
+    // Convert password to hash
+    const hashedPassword = await convertPasswordToHash(password);
+
+    // Create user object
+    const userObj = {
+      name: req.body.name,
+      email: req.body.email,
+      password: hashedPassword,
+      role: req.body.role,
+      cnic: req.body.cnic
+    };
+
+    // Save the new user to the database
+    const newUser = new UserModal(userObj);
+    await newUser.save();
+
+    // Generate token
+    const token = await generateToken({ email: req.body.email, role: req.body.role });
+
+    // If role is user, send a reset password email
+    if (req.body.role === "user") {
+      await sendResetPasswordEmail(req.body.email, password); // Sends reset link and the auto-generated password
+    }
+
+    // Exclude password from the response
+    delete userObj.password;
+
+    res.status(201).json({
+      message: "User created successfully",
+      error: false,
+      data: userObj,
+      token,
+    });
+  } catch (e) {
+    console.error("Error in SignUpNewUser:", e.message);
+    res.status(500).send({
+      error: true,
+      message: e.message,
+    });
+  }
 }
+
 
 
 export async function getAllUsers(req, res) {

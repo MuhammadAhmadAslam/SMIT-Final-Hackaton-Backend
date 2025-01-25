@@ -1,13 +1,18 @@
 import mongoose from "mongoose";
 
-let UserSchema = mongoose.Schema({
-    firstName: {type: String , required: true},
-    lastName: {type: String},
-    email: {type: String , required: true , unique: true},
-    password: {type: String , required: true},
-    role: {type: String , default: "user" , enum: ["user", "admin"]}
-})
+const userSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    cnic: { type: String, required: true, unique: true },
+    password: { type: String, required: true }, // Auto-generated initially
+    role: { type: String, enum: ["user", "admin"], default: "user" },
+    city: { type: String },
+    country: { type: String },
+  },
+  { timestamps: true }
+);
 
-let UserModal = mongoose.model("users", UserSchema)
+let UserModal = mongoose.model("user", userSchema)
 
-export default UserModal;
+export default UserModal
