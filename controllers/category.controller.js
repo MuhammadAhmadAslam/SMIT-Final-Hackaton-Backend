@@ -90,3 +90,20 @@ export async function deleteCategory(req, res) {
     res.status(500).json({ error: true, message: error.message });
   }
 }
+
+
+export async function getAllCategories(req,res){
+  try{
+      let categoryFinding = await CategoryModal.find()
+      res.send({
+        error: false,
+        message: "All Categories Fetched Successfully",
+        data: categoryFinding
+      })
+  }catch(e){
+    res.send({
+      error: true,
+      message: e.message
+    })
+  }
+}

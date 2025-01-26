@@ -1,5 +1,5 @@
 import express from "express";
-import { addCategory,deleteCategory,editCategory } from "../controllers/category.controller.js";
+import { addCategory,deleteCategory,editCategory, getAllCategories } from "../controllers/category.controller.js";
 
 
 const CategpryRouter = express.Router();
@@ -12,5 +12,7 @@ CategpryRouter.put("/edit/:id", editCategory);
 
 // Delete a category
 CategpryRouter.delete("/delete/:id", deleteCategory);
+
+CategpryRouter.get("/getAllCategories", getAllCategories);
 
 export default CategpryRouter;
